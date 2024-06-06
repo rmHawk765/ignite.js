@@ -1,5 +1,5 @@
+import fs from 'node:fs';
 import type { IgniteClient } from './IgniteClient';
-import type { PathLike } from 'node:fs';
 import type { ClientOptions } from "discord.js";
 
 /**
@@ -11,5 +11,5 @@ import type { ClientOptions } from "discord.js";
  * into subfolders.
  */
 export interface IgniteClientOptions extends ClientOptions {
-  basePluginsDir: PathLike;
+  basePluginsDir: string;
 }
