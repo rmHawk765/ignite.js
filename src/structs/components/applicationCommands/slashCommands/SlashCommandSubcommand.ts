@@ -2,8 +2,8 @@ import type {
   ChatInputCommandInteraction,
   SlashCommandSubcommandBuilder,
 } from "discord.js";
-import type SlashCommand from "./SlashCommand";
-import SlashCommandSubcommandGroup from "./SlashCommandSubcommandGroup";
+import type SlashCommand from "./SlashCommand.js";
+import SlashCommandSubcommandGroup from "./SlashCommandSubcommandGroup.js";
 
 /**
  * Register a slash command subcommand and a function to be called when the
