@@ -1,6 +1,6 @@
 {
   "name": "@rmhawk765/ignite.js",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A discord.js framework, designed to make sense.",
   "type": "module",
   "main": "./dist/index.js",
