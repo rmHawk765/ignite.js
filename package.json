@@ -1,17 +1,15 @@
 {
-  "name": "ignite.js",
+  "name": "@rmhawk765/ignite.js",
   "version": "0.1.0",
-  "description": "A discord.js framework, designed to make sense. Unlike Sapphire.",
+  "description": "A discord.js framework, designed to make sense.",
   "type": "module",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "main": "./dist/index.js",
+  "types": "./types/index.d.ts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rmHawk765/ignite.js.git"
   },
-  "author": "rmHawk765",
+  "author": "rmhawk765",
   "license": "AGPL-3.0-only",
   "bugs": {
     "url": "https://github.com/rmHawk765/ignite.js/issues"
@@ -21,7 +19,10 @@
     "prettier": "^3.2.5",
     "typescript": "^5.4.5"
   },
-  "dependencies": {
+  "peerDependencies": {
     "discord.js": "^14.15.2"
+  },
+  "dependencies": {
+    "winston": "^3.13.0"
   }
 }

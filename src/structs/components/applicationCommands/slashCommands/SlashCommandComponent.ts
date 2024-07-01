@@ -2,6 +2,8 @@ import type {
   ChatInputCommandInteraction,
   SlashCommandBuilder,
 } from "discord.js";
+import { ApplicationCommandBaseComponent, ApplicationCommandBaseComponentOptions } from "../index.js";
+import { SlashCommandSubcomponentType } from "../../ComponentType.js";
 
 /**
  * Register a slash command and a function to be called when the slash command
@@ -19,15 +21,26 @@ import type {
  * );
  * ```
  */
-export default class SlashCommand {
+export class SlashCommandComponent extends ApplicationCommandBaseComponent {
   readonly builder: SlashCommandBuilder;
   readonly run: (interaction: ChatInputCommandInteraction) => unknown;
+  readonly subcomponents: SlashCommandSubcomponentType[];
 
   constructor(
     builder: SlashCommandBuilder,
-    run: (interaction: ChatInputCommandInteraction) => unknown
+    run: (interaction: ChatInputCommandInteraction) => unknown,
+    options?: ApplicationCommandBaseComponentOptions
   ) {
+    super(options);
+
     this.builder = builder;
     this.run = run;
+    this.subcomponents = [];
+  }
+
+  addComponents(...subcomponents: SlashCommandSubcomponentType[]) {
+    for (const component of subcomponents) {
+      this.subcomponents.push(component);
+    }
   }
 }

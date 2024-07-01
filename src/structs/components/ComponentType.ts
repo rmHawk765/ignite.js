@@ -1,19 +1,25 @@
-import type ContextMenuCommand from "./applicationCommands/contextMenuCommands/ContextMenuCommand.js";
-import type SlashCommand from "./applicationCommands/slashCommands/SlashCommand.js";
-import type SlashCommandSubcommand from "./applicationCommands/slashCommands/SlashCommandSubcommand.js";
-import type EventListener from "./eventListeners/EventListener.js";
-import SlashCommandSubcommandGroup from "./applicationCommands/slashCommands/SlashCommandSubcommandGroup.js";
-import { ClientEvents } from "discord.js";
+import type {
+  ContextMenuCommandComponent,
+  SlashCommandComponent,
+  SlashCommandSubcommandComponent,
+  SlashCommandSubcommandGroupComponent,
+} from "./applicationCommands/index.js";
+import type { EventListenerComponent } from "./eventListeners/index.js";
+import type { AllowedClientEvents } from "./eventListeners/Events.js";
 
 export type ComponentType =
-  | SlashCommand
-  | SlashCommandSubcommand
-  | SlashCommandSubcommandGroup
-  | ContextMenuCommand
-  | EventListener<keyof ClientEvents>;
+  | SlashCommandComponent
+  | SlashCommandSubcommandComponent
+  | SlashCommandSubcommandGroupComponent
+  | ContextMenuCommandComponent
+  | EventListenerComponent<keyof AllowedClientEvents>;
 
 export type ApplicationCommandComponentType =
-  | SlashCommand
-  | SlashCommandSubcommand
-  | SlashCommandSubcommandGroup
-  | ContextMenuCommand;
+  | SlashCommandComponent
+  | SlashCommandSubcommandComponent
+  | SlashCommandSubcommandGroupComponent
+  | ContextMenuCommandComponent;
+
+export type SlashCommandSubcomponentType =
+  | SlashCommandSubcommandComponent
+  | SlashCommandSubcommandGroupComponent;

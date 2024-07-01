@@ -28,7 +28,9 @@ import { AllowedClientEvents } from "./Events.js";
  * **It is NOT recommended to listen to the `warn` and `debug` events as Ignite
  * handles errors internally by default.**
  */
-export default class EventListener<Event extends keyof AllowedClientEvents> {
+export class EventListenerComponent<
+  const Event extends keyof AllowedClientEvents,
+> {
   readonly event: Event;
   readonly run: (...args: AllowedClientEvents[Event]) => unknown;
 
