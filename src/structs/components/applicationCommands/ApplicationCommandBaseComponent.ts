@@ -1,4 +1,4 @@
-import type ApplicationCommandBaseComponentOptions from "./ApplicationCommandBaseComponentOptions.js";
+import type { ApplicationCommandBaseComponentOptions } from "./index.js";
 
 export class ApplicationCommandBaseComponent {
   constructor(readonly options?: ApplicationCommandBaseComponentOptions) {}
