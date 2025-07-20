@@ -1,7 +1,13 @@
-import fs from "node:fs";
-import path from "node:path";
+import { readdirSync } from "node:fs";
+import { resolve, extname } from "node:path";
+import { pathToFileURL } from "node:url";
+
 import { ApplicationCommandData, Client, Events } from "discord.js";
+import { type Logger, format, createLogger, transports } from "winston";
+
 import type { IgniteClientOptions } from "./IgniteClientOptions.js";
+import type { ComponentType } from "../components/ComponentType.js";
+
 import {
   ApplicationCommandBaseComponent,
   SlashCommandComponent,
@@ -9,11 +15,8 @@ import {
   ContextMenuCommandComponent,
   SlashCommandSubcommandGroupComponent,
 } from "../components/applicationCommands/index.js";
+
 import { EventListenerComponent } from "../components/eventListeners/index.js";
-import type { ComponentType } from "../components/ComponentType.js";
-import winston from "winston";
-import { dir } from "node:console";
-import { pathToFileURL } from "node:url";
 
 /**
  * The base Ignite client class.
@@ -24,7 +27,7 @@ import { pathToFileURL } from "node:url";
  */
 export class IgniteClient {
   readonly discordClient: Client;
-  readonly logger: winston.Logger;
+  readonly logger: Logger;
   readonly basePluginsDir: string;
   readonly components: ComponentType[];
 
@@ -33,16 +36,16 @@ export class IgniteClient {
 
     const loggerFormat =
       options.format ??
-      winston.format.printf(({ level, message }) => {
-        return `Ignite (${level}): ${message} `;
+      format.printf(({ level, message, tag }) => {
+        return `Ignite (${tag ?? "bot user N/A"}) (${level}): ${message} `;
       });
-    this.logger = winston.createLogger({
+    this.logger = createLogger({
       ...options,
       format: loggerFormat,
-      transports: [new winston.transports.Console()],
+      transports: options.transports ?? new transports.Console(),
     });
 
-    this.basePluginsDir = path.resolve(options.basePluginsDir);
+    this.basePluginsDir = resolve(options.basePluginsDir);
     this.components = [];
   }
 
@@ -51,20 +54,17 @@ export class IgniteClient {
     const moduleUrls: string[] = [];
 
     {
-      const dirEntries = fs.readdirSync(this.basePluginsDir, {
+      const dirEntries = readdirSync(this.basePluginsDir, {
         withFileTypes: true,
         recursive: true,
       });
 
       for (const dirEntry of dirEntries) {
-        const entryAbsolutePath = path.resolve(
-          dirEntry.parentPath,
-          dirEntry.name
-        );
+        const entryAbsolutePath = resolve(dirEntry.parentPath, dirEntry.name);
 
         if (
           dirEntry.isFile() &&
-          [".js", ".ts", ".mjs", ".mts"].includes(path.extname(dirEntry.name))
+          [".js", ".ts", ".mjs", ".mts"].includes(extname(dirEntry.name))
         ) {
           const moduleUrl = pathToFileURL(entryAbsolutePath).href;
           moduleUrls.push(moduleUrl);
@@ -203,11 +203,14 @@ export class IgniteClient {
 
       // Prep for command registration
       await this.discordClient.login(token);
+      this.logger.info("Logged into Discord");
       await new Promise((resolve) => {
         this.discordClient.once(Events.ClientReady, resolve);
       });
 
+      // Client will always be ready after awaiting ClientReady
       if (!this.discordClient.isReady()) return;
+      this.logger.info(`Ready as ${this.discordClient.user.tag}`);
 
       // Register application commands
       const commands = await this.discordClient.application.commands.fetch();
