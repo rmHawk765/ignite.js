@@ -1,12 +1,5 @@
-import { readdirSync } from "node:fs";
-import { resolve, extname } from "node:path";
-import { pathToFileURL } from "node:url";
-
-import { ApplicationCommandData, Client, Events } from "discord.js";
+import { APIApplicationCommand, Client, Events } from "discord.js";
 import { type Logger, format, createLogger, transports } from "winston";
-
-import type { IgniteClientOptions } from "./IgniteClientOptions.js";
-import type { ComponentType } from "../components/ComponentType.js";
 
 import {
   ApplicationCommandBaseComponent,
@@ -14,9 +7,11 @@ import {
   SlashCommandSubcommandComponent,
   ContextMenuCommandComponent,
   SlashCommandSubcommandGroupComponent,
-} from "../components/applicationCommands/index.js";
-
-import { EventListenerComponent } from "../components/eventListeners/index.js";
+  EventListenerComponent,
+  ComponentType,
+  IgniteClientOptions,
+  ComponentManager,
+} from "../../index.js";
 
 /**
  * The base Ignite client class.
@@ -26,14 +21,17 @@ import { EventListenerComponent } from "../components/eventListeners/index.js";
  * @property components - The components registered to this client.
  */
 export class IgniteClient {
-  readonly discordClient: Client;
+  private _discordClient?: Client;
+  public get discordClient(): Client | undefined {
+    return this._discordClient;
+  }
   readonly logger: Logger;
   readonly basePluginsDir: string;
   readonly components: ComponentType[];
+  readonly componentManager: ComponentManager = new ComponentManager(this);
+  private readonly rawOptions: IgniteClientOptions;
 
   constructor(options: IgniteClientOptions) {
-    this.discordClient = new Client(options);
-
     const loggerFormat =
       options.format ??
       format.printf(({ level, message, tag }) => {
@@ -44,220 +42,353 @@ export class IgniteClient {
       format: loggerFormat,
       transports: options.transports ?? new transports.Console(),
     });
+    const logger = this.logger;
 
-    this.basePluginsDir = resolve(options.basePluginsDir);
+    this.basePluginsDir = options.basePluginsDir;
     this.components = [];
+    this.rawOptions = options;
   }
 
+  /**
+   * Logs in to Discord and ensures the client is ready.
+   * @param token - The bot token to log in with.
+   */
   async login(token: string) {
-    // Load all components
-    const moduleUrls: string[] = [];
+    this._discordClient = new Client(this.rawOptions);
+    const client = this._discordClient;
+    const logger = this.logger;
 
-    {
-      const dirEntries = readdirSync(this.basePluginsDir, {
-        withFileTypes: true,
-        recursive: true,
-      });
+    await client.login(token);
+    logger.info("Logged into Discord");
 
-      for (const dirEntry of dirEntries) {
-        const entryAbsolutePath = resolve(dirEntry.parentPath, dirEntry.name);
+    await new Promise((resolve) => {
+      client.once(Events.ClientReady, resolve);
+    });
 
-        if (
-          dirEntry.isFile() &&
-          [".js", ".ts", ".mjs", ".mts"].includes(extname(dirEntry.name))
-        ) {
-          const moduleUrl = pathToFileURL(entryAbsolutePath).href;
-          moduleUrls.push(moduleUrl);
-        }
+    // Client will always be ready after the above
+    if (!client.isReady()) return;
+  }
+
+  /**
+   * Registers all components in the basePluginsDir.
+   */
+  async registerComponents() {
+    const components = this.componentManager.components;
+    const componentsEntries = components.entries();
+    const logger = this.logger;
+    const client = this.discordClient;
+    if (!client) {
+      logger.error(
+        "Cannot register components, client is not ready. Have you called `login`?"
+      );
+      return;
+    }
+
+    for (const [id, component] of componentsEntries) {
+      if (component.options.enabled === false) {
+        logger.debug(
+          `Component at:\n${component}\nis disabled, skipping registration.`,
+          { tag: client.user?.tag }
+        );
+        continue;
       }
+    }
 
-      for (const modulePath of moduleUrls) {
-        const logger = this.logger;
-        async function safeImportModule(): Promise<any> {
+    // Register non-interactionCreate event listeners
+    for (const [id, component] of componentsEntries) {
+      if (!(component instanceof EventListenerComponent)) continue;
+      if (component.event === Events.InteractionCreate) continue;
+
+      client.on(component.event, component.run);
+      logger.verbose(
+        `Registered event listener for:\n${component.event}\nComponent ID: ${id}`,
+        { tag: client.user?.tag }
+      );
+    }
+
+    // Run interactionCreate listeners and handle commands
+    // Component URLs are not logged as there is no guarantee they are still accurate at this point
+    // A file could have theoretically been moved without affecting the client as the component is already registered
+    client.on(Events.InteractionCreate, (interaction) => {
+      for (const [id, component] of components.entries()) {
+        if (
+          !interaction.isCommand() &&
+          component instanceof EventListenerComponent &&
+          component.event === Events.InteractionCreate
+        ) {
           try {
-            return await import(modulePath);
+            component.run(interaction);
           } catch (error) {
             logger.error(
-              `Failed to import module at:\n${modulePath}\nError: ${error}`
+              `Error when running non-command InteractionCreate listener\nComponent ID: ${id}\nInteraction: ${interaction.toJSON()}\nError: ${error}`,
+              { tag: client.user?.tag }
             );
           }
+          logger.silly(
+            `Ran generic InteractionCreate listener\nComponent ID: ${id}\nInteraction: ${interaction.toJSON()}`,
+            { tag: client.user?.tag }
+          );
+
+          return;
         }
-        const module: any = await safeImportModule();
-        if (!module) continue;
 
-        const allExports = Object.values(module);
+        if (
+          interaction.isCommand() &&
+          (component instanceof SlashCommandComponent ||
+            component instanceof ContextMenuCommandComponent) &&
+          interaction.commandName !== component.builder.name
+        )
+          continue;
 
-        for (const exported of allExports) {
-          if (
-            !(
-              exported instanceof SlashCommandComponent ||
-              exported instanceof ContextMenuCommandComponent ||
-              exported instanceof EventListenerComponent
-            )
-          )
-            continue;
+        if (
+          interaction.isChatInputCommand() &&
+          !(component instanceof SlashCommandComponent)
+        )
+          continue;
 
-          this.components.push(exported);
+        if (
+          interaction.isContextMenuCommand() &&
+          !(component instanceof ContextMenuCommandComponent)
+        )
+          continue;
 
-          this.logger.debug(`Registered component:\n${exported}`);
-        }
-      }
+        if (
+          interaction.isChatInputCommand() &&
+          component instanceof SlashCommandComponent
+        ) {
+          const subcommandGroupName =
+            interaction.options.getSubcommandGroup(false);
+          const subcommandName = interaction.options.getSubcommand(false);
 
-      this.logger.info("Registered all components");
-
-      // Register non-interactionCreate event listeners
-      for (const component of this.components) {
-        if (!(component instanceof EventListenerComponent)) continue;
-        if (component.event === Events.InteractionCreate) continue;
-
-        this.discordClient.on(component.event, component.run);
-      }
-
-      // Run interactionCreate listeners and handle commands
-      this.discordClient.on(Events.InteractionCreate, (interaction) => {
-        for (const component of this.components) {
-          if (
-            !interaction.isCommand() &&
-            component instanceof EventListenerComponent &&
-            component.event === Events.InteractionCreate
-          ) {
-            component.run(interaction);
-
-            return;
-          }
-
-          if (
-            interaction.isCommand() &&
-            (component instanceof SlashCommandComponent ||
-              component instanceof ContextMenuCommandComponent) &&
-            interaction.commandName !== component.builder.name
-          )
-            continue;
-
-          if (
-            interaction.isChatInputCommand() &&
-            !(component instanceof SlashCommandComponent)
-          )
-            continue;
-
-          if (
-            interaction.isContextMenuCommand() &&
-            !(component instanceof ContextMenuCommandComponent)
-          )
-            continue;
-
-          if (
-            interaction.isChatInputCommand() &&
-            component instanceof SlashCommandComponent
-          ) {
-            const subcommandGroupName =
-              interaction.options.getSubcommandGroup(false);
-            const subcommandName = interaction.options.getSubcommand(false);
-
-            if (!subcommandName) {
+          if (!subcommandName) {
+            try {
               component.run(interaction);
-
-              return;
+            } catch (error) {
+              logger.error(
+                `Error when running command\nComponent ID: ${id}\nInteraction: ${interaction.toJSON()}\nError: ${error}`,
+                { tag: client.user?.tag }
+              );
             }
-
-            for (const subcomponent of component.subcomponents) {
-              if (
-                !(
-                  subcomponent instanceof SlashCommandSubcommandComponent ||
-                  subcomponent instanceof SlashCommandSubcommandGroupComponent
-                )
-              )
-                continue;
-
-              if (
-                subcomponent instanceof SlashCommandSubcommandGroupComponent
-              ) {
-                if (subcomponent.builder.name !== subcommandGroupName) continue;
-
-                for (const subcommand of subcomponent.subcomponents) {
-                  if (subcommand.builder.name !== subcommandName) continue;
-
-                  subcommand.run(interaction);
-
-                  return;
-                }
-              } else {
-                if (subcomponent.builder.name !== subcommandName) continue;
-
-                subcomponent.run(interaction);
-
-                return;
-              }
-            }
-          }
-
-          if (interaction.isContextMenuCommand()) {
-            if (!(component instanceof ContextMenuCommandComponent)) continue;
-
-            component.run(interaction);
+            logger.silly(
+              `Ran command\nComponent ID: ${id}\nInteraction: ${interaction.toJSON()}`,
+              { tag: client.user?.tag }
+            );
 
             return;
-          }
-        }
-      });
-
-      // Prep for command registration
-      await this.discordClient.login(token);
-      this.logger.info("Logged into Discord");
-      await new Promise((resolve) => {
-        this.discordClient.once(Events.ClientReady, resolve);
-      });
-
-      // Client will always be ready after awaiting ClientReady
-      if (!this.discordClient.isReady()) return;
-      this.logger.info(`Ready as ${this.discordClient.user.tag}`);
-
-      // Register application commands
-      const commands = await this.discordClient.application.commands.fetch();
-
-      const commandManager = this.discordClient.application.commands;
-
-      for (const component of this.components) {
-        if (!(component instanceof ApplicationCommandBaseComponent)) continue;
-
-        const fullCommandData = (() => {
-          if (component instanceof ContextMenuCommandComponent) {
-            return component.builder;
           }
 
           for (const subcomponent of component.subcomponents) {
-            if (subcomponent instanceof SlashCommandSubcommandComponent) {
-              component.builder.addSubcommand(subcomponent.builder);
-            } else {
-              component.builder.addSubcommandGroup(subcomponent.builder);
-            }
-          }
-
-          return component.builder;
-        })();
-
-        if (component.options?.commandIds) {
-          for (const id of component.options.commandIds) {
-            const command = commands.get(id);
-
             if (
-              !command?.equals(
-                // The cast is necessary here as otherwise you get a stupid error
-                // about a single missing property which is only available
-                // for the 'education guilds'
-                // TODO: though I do want a proper fix for this
-                component.builder.toJSON() as ApplicationCommandData
+              !(
+                subcomponent instanceof SlashCommandSubcommandComponent ||
+                subcomponent instanceof SlashCommandSubcommandGroupComponent
               )
-            ) {
-              await commands.get(id)?.edit(fullCommandData);
+            )
+              continue;
+
+            if (subcomponent instanceof SlashCommandSubcommandGroupComponent) {
+              if (subcomponent.builder.name !== subcommandGroupName) continue;
+
+              for (const subcommandSubcomponent of subcomponent.subcomponents) {
+                if (subcommandSubcomponent.builder.name !== subcommandName)
+                  continue;
+
+                try {
+                  subcommandSubcomponent.run(interaction);
+                } catch (error) {
+                  logger.error(
+                    `Error when running subcommand in group\nMaster component ID: ${id}\nInteraction: ${interaction.toJSON()}\nError: ${error}`,
+                    { tag: client.user?.tag }
+                  );
+                }
+
+                logger.silly(
+                  `Ran subcommand in group\nMaster component ID: ${id}\nInteraction: ${interaction.toJSON()}`,
+                  { tag: client.user?.tag }
+                );
+
+                return;
+              }
+            } else {
+              if (subcomponent.builder.name !== subcommandName) continue;
+
+              try {
+                subcomponent.run(interaction);
+              } catch (error) {
+                logger.error(
+                  `Error when running subcommand\nMaster component ID: ${id}\nInteraction: ${interaction.toJSON()}\nError: ${error}`,
+                  { tag: client.user?.tag }
+                );
+              }
+              logger.silly(
+                `Ran subcommand\nMaster component ID: ${id}\nInteraction: ${interaction.toJSON()}`,
+                { tag: client.user?.tag }
+              );
+
+              return;
             }
           }
-        } else {
-          await commandManager.create(fullCommandData);
+        }
+
+        if (interaction.isContextMenuCommand()) {
+          if (!(component instanceof ContextMenuCommandComponent)) continue;
+
+          try {
+            component.run(interaction);
+          } catch (error) {
+            logger.error(
+              `Error when running context menu command\nComponent ID: ${id}\nInteraction: ${interaction.toJSON()}\nError: ${error}`,
+              { tag: client.user?.tag }
+            );
+          }
+          logger.silly(
+            `Ran context menu command\nComponent ID: ${id}\nInteraction: ${interaction.toJSON()}`,
+            { tag: client.user?.tag }
+          );
+
+          return;
         }
       }
+    });
 
-      this.logger.info("Deployed all application commands");
-    }
+    logger.info("Registered all components", { tag: client.user?.tag });
   }
+
+  /**
+   * Deploys all registered commands to Discord.
+   * @throws Error if you have not called {@link IgniteClient.login} first.
+   */
+  async deployCommands() {
+    const logger = this.logger;
+    const client = this.discordClient;
+    const componentsEntries = this.componentManager.components.entries();
+    if (!client) {
+      logger.error(
+        "Cannot deploy commands, client is not ready. Have you called `login`?"
+      );
+      return;
+    }
+
+    if (!client.isReady()) {
+      logger.error(
+        "Cannot deploy commands, client is not ready. Have you called `login`?",
+        { tag: client.user?.tag }
+      );
+      return;
+    }
+
+    const commands = client.application.commands;
+
+    await commands.fetch().catch((error) => {
+      logger.error(`Failed to fetch application commands:\n${error}`, {
+        tag: client.user?.tag,
+      });
+      return;
+    });
+
+    // Finalise & deploy application commands
+    for (const [id, component] of componentsEntries) {
+      if (!(component instanceof ApplicationCommandBaseComponent)) continue;
+
+      const fullCommandData = (() => {
+        if (component instanceof ContextMenuCommandComponent) {
+          return component.builder;
+        }
+
+        for (const subcomponent of component.subcomponents) {
+          if (subcomponent instanceof SlashCommandSubcommandComponent) {
+            component.builder.addSubcommand(subcomponent.builder);
+          } else {
+            component.builder.addSubcommandGroup(subcomponent.builder);
+          }
+        }
+
+        return component.builder;
+      })();
+
+      if (component.options.commandIds) {
+        for (const id of component.options.commandIds) {
+          const command = commands.cache.get(id); // avoids unnecessary API calls
+          /** 
+          const comparableCommand = Object.keys(oldCommand).reduce<
+            Record<string, any>
+          >((acc, key) => {
+            const deployedCommandKeys = Object.keys(command?.toJSON() ?? {});
+            if (deployedCommandKeys.includes(key)) {
+              acc[key] = oldCommand[key];
+            }
+            return acc;
+          }, {});
+          */
+          if (
+            !command?.equals(
+              // The cast is necessary here as deployed commands have extra
+              // properties which are not relevant for this comparison
+              component.builder.toJSON() as APIApplicationCommand
+            )
+          ) {
+            if (component.options.undeployed) {
+              await command?.delete().catch((error) => {
+                logger.error(
+                  `Failed to delete command:\n${command?.toJSON()}\nComponent ID: ${id}\nError: ${error}`,
+                  { tag: client.user?.tag }
+                );
+              });
+
+              logger.debug(
+                `Component with ID ${id} is marked for undeployment, undeployed command with ID ${id}.`,
+                { tag: client.user?.tag }
+              );
+              continue;
+            }
+
+            await command?.edit(fullCommandData).catch((error) => {
+              logger.error(
+                `Failed to edit command. Existing command:\n${command?.toJSON()}\nNew command data:\n${fullCommandData.toJSON()}\nError: ${error}`,
+                { tag: client.user?.tag }
+              );
+            });
+
+            logger.debug(
+              `Component at:\n${component}\nis marked for undeployment, undeployed command with ID ${id}.`,
+              { tag: client.user?.tag }
+            );
+          }
+        }
+      } else {
+        const result = await commands.create(fullCommandData).catch((error) => {
+          logger.error(
+            `Failed to create command. Command data:\n${fullCommandData.toJSON()}\nError: ${error}`,
+            { tag: client.user?.tag }
+          );
+        });
+        if (!result) return;
+
+        if (!component.options.commandIds) {
+          component.options.commandIds = [];
+        }
+        component.options.commandIds.push(result.id);
+        logger.info(
+          `Deployed new command with ID ${result.id}. Add this ID to the commandIds array under component.options.`,
+          { tag: client.user?.tag }
+        );
+      }
+    }
+
+    logger.info("Deployed all application commands");
+  }
+
+  /**
+   * Logs in to Discord, registers all components and deploys all commands.
+   * For finer control, use the specific methods.
+   *
+   * @param token - The bot token to log in with.
+   */
+  async expressInit(token: string) {
+    await this.login(token);
+    await this.registerComponents();
+    await this.deployCommands();
+  }
+
+  // TODO: Destroy method
 }

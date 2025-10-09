@@ -1,4 +1,4 @@
-import { AllowedClientEvents } from "./Events.js";
+import { BaseComponent, EventListenerComponentData, AllowedClientEvents } from "../../../index.js";
 /**
  * Register a function to be called on a specified event.
  *
@@ -27,8 +27,9 @@ import { AllowedClientEvents } from "./Events.js";
  * **It is NOT recommended to listen to the `warn` and `debug` events as Ignite
  * handles errors internally by default.**
  */
-export declare class EventListenerComponent<const Event extends keyof AllowedClientEvents> {
+export declare class EventListenerComponent<const Event extends keyof AllowedClientEvents> extends BaseComponent {
     readonly event: Event;
     readonly run: (...args: AllowedClientEvents[Event]) => unknown;
-    constructor(event: Event, run: (...args: AllowedClientEvents[Event]) => unknown);
+    readonly options: EventListenerComponentData;
+    constructor(event: Event, run: (...args: AllowedClientEvents[Event]) => unknown, options: EventListenerComponentData);
 }

@@ -23,3 +23,8 @@ export type ApplicationCommandComponentType =
 export type SlashCommandSubcomponentType =
   | SlashCommandSubcommandComponent
   | SlashCommandSubcommandGroupComponent;
+
+export type BaseUsableComponentType =
+  | SlashCommandComponent
+  | ContextMenuCommandComponent
+  | EventListenerComponent<keyof AllowedClientEvents>;

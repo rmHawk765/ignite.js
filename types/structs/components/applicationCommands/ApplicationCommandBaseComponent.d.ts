@@ -1,5 +1,5 @@
-import type { ApplicationCommandBaseComponentOptions } from "./index.js";
-export declare class ApplicationCommandBaseComponent {
-    readonly options?: ApplicationCommandBaseComponentOptions | undefined;
-    constructor(options?: ApplicationCommandBaseComponentOptions | undefined);
+import { ApplicationCommandBaseComponentOptions, BaseComponent } from "../../../index.js";
+export declare class ApplicationCommandBaseComponent extends BaseComponent {
+    readonly options: ApplicationCommandBaseComponentOptions;
+    constructor(options: ApplicationCommandBaseComponentOptions);
 }

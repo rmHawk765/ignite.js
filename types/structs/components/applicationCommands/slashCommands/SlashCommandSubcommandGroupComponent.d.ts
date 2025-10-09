@@ -3,6 +3,6 @@ import type { SlashCommandSubcommandComponent } from "../index.js";
 export declare class SlashCommandSubcommandGroupComponent {
     readonly builder: SlashCommandSubcommandGroupBuilder;
     readonly subcomponents: SlashCommandSubcommandComponent[];
-    constructor(builder: SlashCommandSubcommandGroupBuilder);
+    constructor(builder: SlashCommandSubcommandGroupBuilder, subcomponents?: SlashCommandSubcommandComponent[]);
     addSubcomponents(...subcomponents: SlashCommandSubcommandComponent[]): void;
 }

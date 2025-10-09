@@ -18,7 +18,7 @@ export class ContextMenuCommandComponent extends ApplicationCommandBaseComponent
   constructor(
     builder: ContextMenuCommandBuilder,
     run: (interaction: ContextMenuCommandInteraction) => unknown,
-    options?: ApplicationCommandBaseComponentOptions
+    options: ApplicationCommandBaseComponentOptions
   ) {
     super(options);
 

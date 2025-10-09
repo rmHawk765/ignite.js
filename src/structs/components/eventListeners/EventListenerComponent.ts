@@ -1,4 +1,8 @@
-import { AllowedClientEvents } from "./Events.js";
+import {
+  BaseComponent,
+  EventListenerComponentData,
+  AllowedClientEvents,
+} from "../../../index.js";
 
 /**
  * Register a function to be called on a specified event.
@@ -30,15 +34,12 @@ import { AllowedClientEvents } from "./Events.js";
  */
 export class EventListenerComponent<
   const Event extends keyof AllowedClientEvents,
-> {
-  readonly event: Event;
-  readonly run: (...args: AllowedClientEvents[Event]) => unknown;
-
+> extends BaseComponent {
   constructor(
-    event: Event,
-    run: (...args: AllowedClientEvents[Event]) => unknown
+    readonly event: Event,
+    readonly run: (...args: AllowedClientEvents[Event]) => unknown,
+    readonly options: EventListenerComponentData
   ) {
-    this.event = event;
-    this.run = run;
+    super(options);
   }
 }

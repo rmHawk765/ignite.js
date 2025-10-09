@@ -7,5 +7,5 @@ import { ApplicationCommandBaseComponent, ApplicationCommandBaseComponentOptions
 export declare class ContextMenuCommandComponent extends ApplicationCommandBaseComponent {
     readonly builder: ContextMenuCommandBuilder;
     readonly run: (interaction: ContextMenuCommandInteraction) => unknown;
-    constructor(builder: ContextMenuCommandBuilder, run: (interaction: ContextMenuCommandInteraction) => unknown, options?: ApplicationCommandBaseComponentOptions);
+    constructor(builder: ContextMenuCommandBuilder, run: (interaction: ContextMenuCommandInteraction) => unknown, options: ApplicationCommandBaseComponentOptions);
 }
