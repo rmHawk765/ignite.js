@@ -12,7 +12,6 @@ export declare class IgniteClient {
     private _discordClient?;
     get discordClient(): Client | undefined;
     readonly logger: Logger;
-    readonly basePluginsDir: string;
     readonly components: ComponentType[];
     readonly componentManager: ComponentManager;
     private readonly rawOptions;
@@ -38,4 +37,11 @@ export declare class IgniteClient {
      * @param token - The bot token to log in with.
      */
     expressInit(token: string): Promise<void>;
+    /**
+     * Gracefully destroys the client by waiting for interactions to finish.
+     * This is a crap implementation, I know, but icba to do a proper emitter
+     * based one for now.
+     * @param force Force destroy without waiting
+     */
+    destroy(force?: boolean): Promise<void>;
 }

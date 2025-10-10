@@ -26,7 +26,6 @@ export class IgniteClient {
     return this._discordClient;
   }
   readonly logger: Logger;
-  readonly basePluginsDir: string;
   readonly components: ComponentType[];
   readonly componentManager: ComponentManager = new ComponentManager(this);
   private readonly rawOptions: IgniteClientOptions;
@@ -44,7 +43,6 @@ export class IgniteClient {
     });
     const logger = this.logger;
 
-    this.basePluginsDir = options.basePluginsDir;
     this.components = [];
     this.rawOptions = options;
   }
@@ -107,15 +105,22 @@ export class IgniteClient {
     }
 
     // Run interactionCreate listeners and handle commands
-    // Component URLs are not logged as there is no guarantee they are still accurate at this point
-    // A file could have theoretically been moved without affecting the client as the component is already registered
     client.on(Events.InteractionCreate, (interaction) => {
       for (const [id, component] of components.entries()) {
+        if (component.options.enabled === false) {
+          logger.debug(
+            `Component with ID ${id} is disabled, skipping run.\nInteraction: ${interaction.toJSON()}`,
+            { tag: client.user?.tag }
+          );
+          continue;
+        }
+
         if (
           !interaction.isCommand() &&
           component instanceof EventListenerComponent &&
           component.event === Events.InteractionCreate
         ) {
+          component.options.pendingUse = true;
           try {
             component.run(interaction);
           } catch (error) {
@@ -129,6 +134,7 @@ export class IgniteClient {
             { tag: client.user?.tag }
           );
 
+          component.options.pendingUse = false;
           return;
         }
 
@@ -161,6 +167,7 @@ export class IgniteClient {
           const subcommandName = interaction.options.getSubcommand(false);
 
           if (!subcommandName) {
+            component.options.pendingUse = true;
             try {
               component.run(interaction);
             } catch (error) {
@@ -174,6 +181,7 @@ export class IgniteClient {
               { tag: client.user?.tag }
             );
 
+            component.options.pendingUse = false;
             return;
           }
 
@@ -193,6 +201,7 @@ export class IgniteClient {
                 if (subcommandSubcomponent.builder.name !== subcommandName)
                   continue;
 
+                component.options.pendingUse = true;
                 try {
                   subcommandSubcomponent.run(interaction);
                 } catch (error) {
@@ -207,11 +216,13 @@ export class IgniteClient {
                   { tag: client.user?.tag }
                 );
 
+                component.options.pendingUse = false;
                 return;
               }
             } else {
               if (subcomponent.builder.name !== subcommandName) continue;
 
+              component.options.pendingUse = true;
               try {
                 subcomponent.run(interaction);
               } catch (error) {
@@ -225,6 +236,7 @@ export class IgniteClient {
                 { tag: client.user?.tag }
               );
 
+              component.options.pendingUse = false;
               return;
             }
           }
@@ -233,6 +245,7 @@ export class IgniteClient {
         if (interaction.isContextMenuCommand()) {
           if (!(component instanceof ContextMenuCommandComponent)) continue;
 
+          component.options.pendingUse = true;
           try {
             component.run(interaction);
           } catch (error) {
@@ -246,6 +259,7 @@ export class IgniteClient {
             { tag: client.user?.tag }
           );
 
+          component.options.pendingUse = false;
           return;
         }
       }
@@ -375,7 +389,7 @@ export class IgniteClient {
       }
     }
 
-    logger.info("Deployed all application commands");
+    logger.info("Deployed all application commands", { tag: client.user?.tag });
   }
 
   /**
@@ -390,5 +404,35 @@ export class IgniteClient {
     await this.deployCommands();
   }
 
-  // TODO: Destroy method
+  /**
+   * Gracefully destroys the client by waiting for interactions to finish.
+   * This is a crap implementation, I know, but icba to do a proper emitter
+   * based one for now.
+   * @param force Force destroy without waiting
+   */
+  async destroy(force?: boolean) {
+    const client = this.discordClient;
+    const components = this.componentManager.components.map((value) => value);
+    const logger = this.logger;
+
+    if (!client) {
+      logger.error(
+        "Cannot destroy, client is not ready. Have you called `login`?"
+      );
+      return;
+    }
+    if (!force) {
+      while (true) {
+        const anyPending = components.some(
+          (component) => component.options.pendingUse
+        );
+        if (!anyPending || force) break;
+
+        logger.info(`Waiting for interactions to finish...`);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
+
+    await this.discordClient?.destroy();
+  }
 }
