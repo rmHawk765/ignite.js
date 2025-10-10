@@ -13,7 +13,4 @@ import { LoggerOptions } from "winston";
  * @property apiTimeout - The timeout in seconds for awaiting API requests.
  * Defaults to 60 seconds (1 minute). If set to `0`, no timeout will be applied.
  */
-export interface IgniteClientOptions extends ClientOptions, LoggerOptions {
-  basePluginsDir: string;
-  apiTimeout?: number;
-}
+export interface IgniteClientOptions extends ClientOptions, LoggerOptions {}
