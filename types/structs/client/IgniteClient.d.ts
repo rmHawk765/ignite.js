@@ -22,9 +22,9 @@ export declare class IgniteClient {
      */
     login(token: string): Promise<void>;
     /**
-     * Registers all components in the basePluginsDir.
+     * Registers all components added to the ComponentManager.
      */
-    registerComponents(): Promise<void>;
+    registerComponents(): void;
     /**
      * Deploys all registered commands to Discord.
      * @throws Error if you have not called {@link IgniteClient.login} first.

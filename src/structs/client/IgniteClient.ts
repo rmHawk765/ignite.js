@@ -68,9 +68,9 @@ export class IgniteClient {
   }
 
   /**
-   * Registers all components in the basePluginsDir.
+   * Registers all components added to the ComponentManager.
    */
-  async registerComponents() {
+  registerComponents() {
     const components = this.componentManager.components;
     const componentsEntries = components.entries();
     const logger = this.logger;
