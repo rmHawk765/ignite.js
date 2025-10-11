@@ -20,7 +20,7 @@ import {
  * ```
  * export const myButtonHandler = new EventListener(
  *   Events.InteractionCreate,
- *   async (interaction) => {
+ *   async (client, interaction) => {
  *     if (!interaction.isButton()) return;
  *     if (interaction.customId !== 'myCustomId') return;
  *
