@@ -10,7 +10,7 @@ import { IgniteClient } from "../../../client/IgniteClient.js";
  *   new SlashCommandBuilder()
  *     .setName("hello-world")
  *     .setDescription("Replies with 'Hello world!'"),
- *   async (interaction) => {
+ *   async (client, interaction) => {
  *     await interaction.reply("Hello world!");
  *     return;
  *   }
@@ -20,7 +20,7 @@ import { IgniteClient } from "../../../client/IgniteClient.js";
  *   new SlashCommandSubcommandBuilder()
  *     .setName("scream")
  *     .setDescription("HELLO WORLD!"),
- *   async (interaction) => {
+ *   async (client, interaction) => {
  *     await interaction.reply("HELLO WORLD!");
  *     return;
  *    }

@@ -10,7 +10,7 @@ import { ApplicationCommandBaseComponent, ApplicationCommandBaseComponentOptions
  *   new SlashCommandBuilder()
  *     .setName("hello-world")
  *     .setDescription("Replies with 'Hello world!'"),
- *   async (interaction) => {
+ *   async (client, interaction) => {
  *     return interaction.reply("Hello world!");
  *   }
  * );
