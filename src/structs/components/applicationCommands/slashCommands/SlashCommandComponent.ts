@@ -5,6 +5,7 @@ import type {
 import {
   ApplicationCommandBaseComponent,
   ApplicationCommandBaseComponentOptions,
+  IgniteClient,
   SlashCommandSubcomponentType,
 } from "../../../index.js";
 
@@ -27,7 +28,10 @@ import {
 export class SlashCommandComponent extends ApplicationCommandBaseComponent {
   constructor(
     readonly builder: SlashCommandBuilder,
-    readonly run: (interaction: ChatInputCommandInteraction) => unknown,
+    readonly run: (
+      client: IgniteClient,
+      interaction: ChatInputCommandInteraction
+    ) => unknown,
     readonly options: ApplicationCommandBaseComponentOptions,
     readonly subcomponents: SlashCommandSubcomponentType[] = []
   ) {

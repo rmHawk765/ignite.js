@@ -2,6 +2,7 @@ import {
   BaseComponent,
   EventListenerComponentData,
   AllowedClientEvents,
+  IgniteClient,
 } from "../../../index.js";
 
 /**
@@ -37,7 +38,10 @@ export class EventListenerComponent<
 > extends BaseComponent {
   constructor(
     readonly event: Event,
-    readonly run: (...args: AllowedClientEvents[Event]) => unknown,
+    readonly run: (
+      client: IgniteClient,
+      ...args: AllowedClientEvents[Event]
+    ) => unknown,
     readonly options: EventListenerComponentData
   ) {
     super(options);

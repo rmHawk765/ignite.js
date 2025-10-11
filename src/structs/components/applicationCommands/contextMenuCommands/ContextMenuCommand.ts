@@ -5,24 +5,22 @@ import type {
 import {
   ApplicationCommandBaseComponent,
   ApplicationCommandBaseComponentOptions,
-} from "../index.js";
+} from "../../../../index.js";
+import { IgniteClient } from "../../../../index.js";
 
 /**
  * Register a context menu command and a function to be called when the command
  * is invoked.
  */
 export class ContextMenuCommandComponent extends ApplicationCommandBaseComponent {
-  readonly builder: ContextMenuCommandBuilder;
-  readonly run: (interaction: ContextMenuCommandInteraction) => unknown;
-
   constructor(
-    builder: ContextMenuCommandBuilder,
-    run: (interaction: ContextMenuCommandInteraction) => unknown,
-    options: ApplicationCommandBaseComponentOptions
+    readonly builder: ContextMenuCommandBuilder,
+    readonly run: (
+      client: IgniteClient,
+      interaction: ContextMenuCommandInteraction
+    ) => unknown,
+    readonly options: ApplicationCommandBaseComponentOptions
   ) {
     super(options);
-
-    this.builder = builder;
-    this.run = run;
   }
 }

@@ -1,4 +1,5 @@
 import type { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from "discord.js";
+import { IgniteClient } from "../../../client/IgniteClient.js";
 /**
  * Register a slash command subcommand and a function to be called when the
  * command is invoked.
@@ -30,6 +31,6 @@ import type { ChatInputCommandInteraction, SlashCommandSubcommandBuilder } from 
  */
 export declare class SlashCommandSubcommandComponent {
     readonly builder: SlashCommandSubcommandBuilder;
-    readonly run: (interaction: ChatInputCommandInteraction) => unknown;
-    constructor(builder: SlashCommandSubcommandBuilder, run: (interaction: ChatInputCommandInteraction) => unknown);
+    readonly run: (client: IgniteClient, interaction: ChatInputCommandInteraction) => unknown;
+    constructor(builder: SlashCommandSubcommandBuilder, run: (client: IgniteClient, interaction: ChatInputCommandInteraction) => unknown);
 }

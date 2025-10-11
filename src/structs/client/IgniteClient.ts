@@ -97,7 +97,7 @@ export class IgniteClient {
       if (!(component instanceof EventListenerComponent)) continue;
       if (component.event === Events.InteractionCreate) continue;
 
-      client.on(component.event, component.run);
+      client.on(component.event, (...args) => component.run(this, ...args));
       logger.verbose(
         `Registered event listener for:\n${component.event}\nComponent ID: ${id}`,
         { tag: client.user?.tag }
@@ -122,7 +122,7 @@ export class IgniteClient {
         ) {
           component.options.pendingUse = true;
           try {
-            component.run(interaction);
+            component.run(this, interaction);
           } catch (error) {
             logger.error(
               `Error when running non-command InteractionCreate listener\nComponent ID: ${id}\nInteraction: ${interaction.toJSON()}\nError: ${error}`,
@@ -169,7 +169,7 @@ export class IgniteClient {
           if (!subcommandName) {
             component.options.pendingUse = true;
             try {
-              component.run(interaction);
+              component.run(this, interaction);
             } catch (error) {
               logger.error(
                 `Error when running command\nComponent ID: ${id}\nInteraction: ${interaction.toJSON()}\nError: ${error}`,
@@ -203,7 +203,7 @@ export class IgniteClient {
 
                 component.options.pendingUse = true;
                 try {
-                  subcommandSubcomponent.run(interaction);
+                  subcommandSubcomponent.run(this, interaction);
                 } catch (error) {
                   logger.error(
                     `Error when running subcommand in group\nMaster component ID: ${id}\nInteraction: ${interaction.toJSON()}\nError: ${error}`,
@@ -224,7 +224,7 @@ export class IgniteClient {
 
               component.options.pendingUse = true;
               try {
-                subcomponent.run(interaction);
+                subcomponent.run(this, interaction);
               } catch (error) {
                 logger.error(
                   `Error when running subcommand\nMaster component ID: ${id}\nInteraction: ${interaction.toJSON()}\nError: ${error}`,
@@ -247,7 +247,7 @@ export class IgniteClient {
 
           component.options.pendingUse = true;
           try {
-            component.run(interaction);
+            component.run(this, interaction);
           } catch (error) {
             logger.error(
               `Error when running context menu command\nComponent ID: ${id}\nInteraction: ${interaction.toJSON()}\nError: ${error}`,

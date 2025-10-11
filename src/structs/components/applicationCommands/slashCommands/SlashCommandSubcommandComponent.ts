@@ -2,6 +2,7 @@ import type {
   ChatInputCommandInteraction,
   SlashCommandSubcommandBuilder,
 } from "discord.js";
+import { IgniteClient } from "../../../client/IgniteClient.js";
 
 /**
  * Register a slash command subcommand and a function to be called when the
@@ -35,6 +36,9 @@ import type {
 export class SlashCommandSubcommandComponent {
   constructor(
     readonly builder: SlashCommandSubcommandBuilder,
-    readonly run: (interaction: ChatInputCommandInteraction) => unknown
+    readonly run: (
+      client: IgniteClient,
+      interaction: ChatInputCommandInteraction
+    ) => unknown
   ) {}
 }
